@@ -110,9 +110,10 @@ router.get('/:id/stream', async (req, res) => {
   if (sessions.length === 0) return res.status(404).json({ error: '세션 없음' });
 
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
     Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no', // nginx 가 SSE 를 버퍼에 묶지 않게
   });
   res.write('event: connected\ndata: {}\n\n');
 

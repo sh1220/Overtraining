@@ -49,7 +49,10 @@ export default function SessionLive({ sessionId }: SessionLiveProps) {
     const token = getToken();
     if (!token) return;
 
-    const es = new EventSource(`${API_BASE}/api/sessions/${sessionId}/stream?token=${token}`);
+    const qs = new URLSearchParams({ token: token ?? '' });
+    const es = new EventSource(
+      `${API_BASE}/api/sessions/${sessionId}/stream?${qs.toString()}`
+    );
     esRef.current = es;
 
     es.addEventListener('connected', () => setConnected(true));
@@ -64,7 +67,10 @@ export default function SessionLive({ sessionId }: SessionLiveProps) {
       setAlerts((prev) => [alert, ...prev].slice(0, 20));
     });
 
-    es.onerror = () => setConnected(false);
+    // EventSource 는 재접속 시에도 onerror가 자주 뜸 — 끊김(CLOSED)일 때만 빨간 표시
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) setConnected(false);
+    };
 
     return () => es.close();
   }, [sessionId]);
