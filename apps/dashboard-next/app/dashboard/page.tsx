@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
-import { getToken, getUser, logout } from '@/lib/auth';
+import { getToken, getUser, isUiDemoMode, logout, AUTH_TEMP_DISABLED, enterUiDemoMode } from '@/lib/auth';
 import FitbitConnect from './FitbitConnect';
 import SessionLive from './SessionLive';
 import RiskGauge from './RiskGauge';
@@ -36,8 +36,15 @@ export default function DashboardPage() {
   const [snapshot, setSnapshot] = useState<any>(null);
 
   useEffect(() => {
-    if (!getToken()) { router.replace('/login'); return; }
-    loadData();
+    if (AUTH_TEMP_DISABLED) {
+      if (!getToken()) enterUiDemoMode({ username: 'guest' });
+      loadData();
+    } else if (!getToken()) {
+      router.replace('/login');
+      return;
+    } else {
+      loadData();
+    }
 
     // Fitbit 연동 완료 확인
     if (searchParams.get('fitbit') === 'connected') {
@@ -46,6 +53,30 @@ export default function DashboardPage() {
   }, []);
 
   const loadData = async () => {
+    if (isUiDemoMode()) {
+      const u = getUser() || { username: 'guest', age: 30, id: 0 };
+      setUser({ ...u, fitbit_connected: false });
+      setFitbitConnected(false);
+      setRisk({
+        risk_score: 42,
+        verdict: 'CAUTION',
+        recommendation: '운동 강도를 조절하세요. (UI 데모·데이터는 가짜)',
+        factors: { sleep: 0.2, wbgt: 0.3, heart_rate: 0.1 },
+      });
+      setSessions([
+        {
+          id: 100,
+          status: 'ended',
+          started_at: new Date().toISOString(),
+          ended_at: new Date().toISOString(),
+          max_risk_score: 35,
+          final_verdict: 'CAUTION',
+        },
+      ]);
+      setActiveSession(null);
+      setLoading(false);
+      return;
+    }
     try {
       const [meRes, riskRes, sessRes] = await Promise.all([
         api.get('/auth/me'),
@@ -75,6 +106,17 @@ export default function DashboardPage() {
   };
 
   const startSession = async () => {
+    if (isUiDemoMode()) {
+      setActiveSession({
+        id: 1,
+        status: 'active',
+        started_at: new Date().toISOString(),
+        ended_at: null,
+        max_risk_score: 0,
+        final_verdict: null,
+      });
+      return;
+    }
     try {
       const res = await api.post('/api/sessions');
       setActiveSession(res.data);
@@ -89,6 +131,10 @@ export default function DashboardPage() {
 
   const endSession = async () => {
     if (!activeSession) return;
+    if (isUiDemoMode()) {
+      setActiveSession(null);
+      return;
+    }
     try {
       await api.post(`/api/sessions/${activeSession.id}/end`);
       setActiveSession(null);
@@ -102,6 +148,11 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
+      {isUiDemoMode() && (
+        <p className="mb-3 text-center text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md py-2 px-3">
+          UI 데모 모드 — API/백엔드 없이 가짜 데이터로 화면만 표시됩니다.
+        </p>
+      )}
       {/* 헤더 */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">대시보드</h1>

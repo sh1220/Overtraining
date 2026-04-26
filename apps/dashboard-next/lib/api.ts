@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isUiDemoMode, AUTH_TEMP_DISABLED } from './auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
 
@@ -15,9 +16,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && typeof window !== 'undefined') {
+    if (err.response?.status === 401 && typeof window !== 'undefined' && !isUiDemoMode()) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      window.location.href = AUTH_TEMP_DISABLED ? '/' : '/login';
     }
     return Promise.reject(err);
   }

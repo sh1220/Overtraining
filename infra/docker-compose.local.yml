@@ -1,0 +1,64 @@
+# 로컬에서 대시보드·API만 테스트할 때: MySQL + Kafka + api-server
+# 사용: cd infra && docker compose -f docker-compose.local.yml up -d --build
+# API: http://localhost:3000  /  Next.js는 http://localhost:3001 (CORS)
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: overtraining-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: devlocal
+      MYSQL_DATABASE: overtraining
+    command: >
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+      - ./mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: overtraining-kafka
+    # EC2/9094(엣지) 없이, Compose 네트워크 내에서 PLAINTEXT만 사용
+    environment:
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_HEAP_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - kafka_local_data:/bitnami/kafka
+
+  api-server:
+    build: ../apps/api-server
+    container_name: overtraining-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=dev-local-jwt-secret-change-in-prod
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=devlocal
+      - MYSQL_DB=overtraining
+      - KAFKA_BROKERS=kafka:9092
+      - CORS_ORIGIN=http://localhost:3001
+      - FRONTEND_REDIRECT_URI=http://localhost:3001/dashboard
+      - FITBIT_CLIENT_ID=local
+      - FITBIT_CLIENT_SECRET=local
+      - FITBIT_REDIRECT_URI=http://localhost:3000/auth/fitbit/callback
+      - EDGE_API_KEY_PEPPER=dev-pepper-local
+      - SEED_EDGE_API_KEY=pi-01-initial-key
+    depends_on:
+      - mysql
+      - kafka
+
+volumes:
+  mysql_local_data:
+  kafka_local_data:

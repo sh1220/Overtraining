@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { getToken, isUiDemoMode } from '@/lib/auth';
 import RiskGauge from './RiskGauge';
 
 interface SessionLiveProps {
@@ -32,6 +32,20 @@ export default function SessionLive({ sessionId }: SessionLiveProps) {
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    if (isUiDemoMode()) {
+      setConnected(true);
+      setData({
+        hr: 98,
+        wbgt: 28.5,
+        temperature: 30,
+        humidity: 65,
+        risk_score: 45,
+        verdict: 'CAUTION',
+        recommendation: '휴식을 권장합니다. (UI 데모)',
+        ts: new Date().toISOString(),
+      });
+      return;
+    }
     const token = getToken();
     if (!token) return;
 

@@ -1,0 +1,17 @@
+# Dependencies & build
+node_modules/
+.next/
+out/
+dist/
+
+# Env
+.env
+.env.*.local
+
+# OS & tools
+.DS_Store
+.omc/
+
+# Logs
+*.log
+npm-debug.log*

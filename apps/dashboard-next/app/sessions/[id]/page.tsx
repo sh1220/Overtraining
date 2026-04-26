@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { getToken, isUiDemoMode, AUTH_TEMP_DISABLED, enterUiDemoMode } from '@/lib/auth';
 import Link from 'next/link';
 
 interface Alert {
@@ -31,11 +31,36 @@ export default function SessionDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) { router.replace('/login'); return; }
+    if (AUTH_TEMP_DISABLED) {
+      if (!getToken()) enterUiDemoMode({ username: 'guest' });
+      loadSession();
+      return;
+    }
+    if (!getToken()) {
+      router.replace('/login');
+      return;
+    }
     loadSession();
   }, []);
 
   const loadSession = async () => {
+    if (isUiDemoMode()) {
+      const id = Number(params.id) || 100;
+      setSession({
+        id,
+        user_id: 0,
+        started_at: new Date().toISOString(),
+        ended_at: new Date().toISOString(),
+        status: 'ended',
+        max_risk_score: 35,
+        final_verdict: 'CAUTION',
+        alerts: [
+          { id: 1, ts: new Date().toISOString(), level: 'WARNING', risk_score: 32, message: '과열에 주의 (UI 데모)' },
+        ],
+      });
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.get(`/api/sessions/${params.id}`);
       setSession(res.data);
