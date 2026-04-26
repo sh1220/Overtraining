@@ -1,30 +1,49 @@
-version: '3.8'
+# EC2: Apache Kafka + MySQL + API + Next + Prometheus
+# **호스트에서 nginx** 가 80/443(또는 원하는 방식)에서 리버스 프록시 →
+#   본 compose 는 API/Next 를 loopback(127.0.0.1)에만 바인딩 (같은 머신의 nginx 가 upstream)
+#
+# .env: EC2_PUBLIC_HOST, API_BASE_URL, DASHBOARD_BASE_URL, MYSQL_*, …
+# API_BASE_URL / DASHBOARD_BASE_URL 은 **브라우저에 보이는** 공개 URL(nginx)과 같게
+#   예) 둘 다 https://overtraining.kro.kr (path로 API·Next 분기하는 경우)
+#   예) https://api.x / https://app.x (서브도메인)
+#
+# 대시보드: NEXT_PUBLIC_API_BASE 는 빌드에 박힘 — API_BASE_URL 변경 시
+#   docker compose build --no-cache dashboard
+#
+# API ↔ Kafka: kafka:19092  /  Pi(밖): EC2_PUBLIC_HOST:9094
+# (구 Bitnami) 볼륨 맞교체 시: docker volume rm ... kafka_data
 
 services:
   kafka:
-    image: bitnami/kafka:3.7
+    image: apache/kafka:3.7.0
+    hostname: kafka
     container_name: kafka
     ports:
       - "9092:9092"
       - "9094:9094"
     environment:
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://${EC2_PUBLIC_HOST}:9094
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_HEAP_OPTS=-Xmx768m -Xms512m
+      CLUSTER_ID: "4L6g3nShT-eMCtK--X86sw"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_LISTENERS: "CONTROLLER://:29093,PLAINTEXT://:19092,PLAINTEXT_HOST://:9092,EXTERNAL://:9094"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092,EXTERNAL://${EC2_PUBLIC_HOST}:9094"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
     volumes:
-      - kafka_data:/bitnami/kafka
+      - kafka_data:/tmp/kraft-combined-logs
 
   mysql:
     image: mysql:8.0
     container_name: mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=overtraining
@@ -36,20 +55,22 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  # nginx 에서 127.0.0.1:9090 로 잡아서 /metrics 프록시 등(선택)
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    expose:
-      - "9090"
+    ports:
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prom_data:/prometheus
 
+  # Express API — EC2:3000, nginx 는 127.0.0.1:3000
   api-server:
     build: ../apps/api-server
     container_name: api-server
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
@@ -57,31 +78,30 @@ services:
       - MYSQL_USER=root
       - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DB=overtraining
-      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_BROKERS=kafka:19092
       - FITBIT_CLIENT_ID=${FITBIT_CLIENT_ID}
       - FITBIT_CLIENT_SECRET=${FITBIT_CLIENT_SECRET}
-      - FITBIT_REDIRECT_URI=https://${PUBLIC_DOMAIN}/auth/fitbit/callback
-      - FRONTEND_REDIRECT_URI=${VERCEL_URL}/dashboard
+      - FITBIT_REDIRECT_URI=${API_BASE_URL}/auth/fitbit/callback
+      - FRONTEND_REDIRECT_URI=${DASHBOARD_BASE_URL}/dashboard
       - EDGE_API_KEY_PEPPER=${EDGE_API_KEY_PEPPER}
-      - CORS_ORIGIN=${VERCEL_URL}
+      - CORS_ORIGIN=${DASHBOARD_BASE_URL}
       - SEED_EDGE_API_KEY=${SEED_EDGE_API_KEY}
     depends_on:
       - mysql
       - kafka
 
-  caddy:
-    image: caddy:2
-    container_name: caddy
+  # Next.js — EC2:3001, nginx 는 127.0.0.1:3001
+  dashboard:
+    build:
+      context: ../apps/dashboard-next
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE=${API_BASE_URL}
+    container_name: dashboard
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:3001:3001"
     environment:
-      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN}
-      - VERCEL_URL=${VERCEL_URL}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - NODE_ENV=production
     depends_on:
       - api-server
 
@@ -89,5 +109,3 @@ volumes:
   kafka_data:
   mysql_data:
   prom_data:
-  caddy_data:
-  caddy_config:

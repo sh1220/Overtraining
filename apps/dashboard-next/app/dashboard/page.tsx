@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getToken, getUser, isUiDemoMode, logout, AUTH_TEMP_DISABLED, enterUiDemoMode } from '@/lib/auth';
@@ -24,7 +24,7 @@ interface Session {
   final_verdict: string | null;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
@@ -50,6 +50,7 @@ export default function DashboardPage() {
     if (searchParams.get('fitbit') === 'connected') {
       alert('Fitbit 연동이 완료되었습니다!');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 시 1회 (searchParams 는 Suspense 이후)
   }, []);
 
   const loadData = async () => {
@@ -240,5 +241,15 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={<div className="flex items-center justify-center min-h-screen">로딩 중...</div>}
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -1,15 +1,21 @@
-{$PUBLIC_DOMAIN} {
-    reverse_proxy /metrics prometheus:9090
-    reverse_proxy api-server:3000
+# 참고용: compose 는 Caddy 대신 호스트 nginx + infra/nginx.example.conf 사용
+# 이 파일은 그대로 두지 않아도 됨
 
-    @cors_preflight method OPTIONS
-    handle @cors_preflight {
-        header Access-Control-Allow-Origin "{$VERCEL_URL}"
-        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-        header Access-Control-Allow-Headers "Authorization, Content-Type"
-        header Access-Control-Allow-Credentials "true"
-        respond "" 204
-    }
-    header Access-Control-Allow-Origin "{$VERCEL_URL}"
-    header Access-Control-Allow-Credentials "true"
+{$PUBLIC_DOMAIN} {
+	# /metrics (프로메테우스) — API의 /metrics 와는 별개(내부 수집은 docker 네트워크에서 api-server:3000 직접)
+	reverse_proxy /metrics prometheus:9090
+
+	@api path /auth* /api* /api-docs*
+	handle @api {
+		reverse_proxy api-server:3000
+	}
+
+	handle /health {
+		reverse_proxy api-server:3000
+	}
+
+	# Next.js (백엔드 api-server:3000 과는 다른 서비스·다른 포트)
+	handle {
+		reverse_proxy dashboard:3001
+	}
 }

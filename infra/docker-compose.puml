@@ -1,0 +1,57 @@
+@startuml
+' infra/docker-compose.yml (EC2) + nginx — 미리보기: 오래/간단엔 !theme, **, 색 # 지양
+' VS Code: PlantUML 확장 + (선택) Java/Graphviz 또는 서버: 설정 plantuml.render
+
+left to right direction
+skinparam linetype ortho
+title overtraining EC2: docker compose + nginx
+
+actor User as "User\n(Browser)"
+node "Raspberry Pi\nedge-agent" as RPi
+
+node EC2 {
+  [nginx\n443/80] as Nginx
+  package "docker compose" {
+    [kafka] as BROKER
+    [api-server\n:3000] as API
+    [dashboard\n:3001] as DASH
+    [mysql] as MYSQL
+    [prometheus\n:9090] as PROM
+  }
+  database "kafka_data" as Vk
+  database "mysql_data" as Vm
+  database "prom_data" as Vp
+  BROKER - Vk
+  MYSQL - Vm
+  PROM - Vp
+}
+
+User - Nginx
+Nginx - API
+Nginx - DASH
+User ..> API
+API - MYSQL
+API --> BROKER
+PROM ..> API
+RPi -up-> BROKER
+
+note right of Nginx
+  Host ports: 3000,3001 -> loopback
+  9092,9094 -> host (edge :9094)
+  3306,9090 -> 127.0.0.1
+end note
+
+note right of BROKER
+  19092 = api (kafka:19092)
+  9094 = Pi, EXTERNAL
+  29093 = KRaft
+end note
+
+note bottom
+  API_BASE_URL, DASHBOARD_BASE_URL: same as nginx public HTTPS
+  EC2_PUBLIC_HOST: Kafka :9094 advertised
+  edge EC2_API_BASE: API_BASE_URL
+end note
+
+footer docker-compose.yml
+@enduml
