@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { sendHeartRate } from '../kafka/producer.js';
+import { setLiveHr, logLive } from '../liveStatus.js';
 
 const DEVICE_ID = process.env.DEVICE_ID || 'pi-01';
 
@@ -8,7 +9,9 @@ let mockHr = 72;
 // readline에서 hr 값 변경 가능
 export function setMockHr(val) {
   mockHr = val;
-  console.log(`[mock] HR 설정: ${val}`);
+  setLiveHr(val);
+  logLive();
+  console.log(`[mock] stdin HR → ${val} BPM`);
 }
 
 export async function pollFitbitHr(accessToken, userId) {
@@ -31,7 +34,8 @@ export async function pollFitbitHr(accessToken, userId) {
         ts: new Date().toISOString(),
         source: 'fitbit',
       });
-      console.log(`[edge] HR  ${hr} BPM  (fitbit)  user=${userId}  device=${DEVICE_ID}`);
+      setLiveHr(hr);
+      logLive();
     }
   } catch (err) {
     console.error('[fitbit/poller]', err.message);
@@ -46,5 +50,6 @@ export async function pollMockHr(userId) {
     ts: new Date().toISOString(),
     source: 'mock',
   });
-  console.log(`[edge] HR  ${mockHr} BPM  (mock)  user=${userId}  device=${DEVICE_ID}`);
+  setLiveHr(mockHr);
+  logLive();
 }

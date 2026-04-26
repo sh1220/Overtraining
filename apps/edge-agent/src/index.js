@@ -4,6 +4,7 @@ import { initProducer, sendWbgt } from './kafka/producer.js';
 import { readSensor, initMockSensor } from './sensors/wbgt.js';
 import { getFitbitToken } from './api/tokenFetcher.js';
 import { pollFitbitHr, pollMockHr, setMockHr } from './fitbit/poller.js';
+import { setLiveWbgt, logLive } from './liveStatus.js';
 import axios from 'axios';
 
 const {
@@ -48,6 +49,17 @@ async function main() {
     });
   }
 
+  {
+    const d0 = readSensor();
+    setLiveWbgt({
+      wbgt: d0.wbgt,
+      temperature: d0.temperature,
+      humidity: d0.humidity,
+    });
+    console.log('[edge] 터미널 요약: Kafka로 보낼 때마다 심박·WBGT·기온·습도 한 줄로 갱신');
+    logLive();
+  }
+
   // 5초마다 WBGT 센서 데이터 전송
   setInterval(async () => {
     try {
@@ -61,9 +73,12 @@ async function main() {
         ts: new Date().toISOString(),
       };
       await sendWbgt(payload);
-      console.log(
-        `[edge] WBGT wbgt=${payload.wbgt}°C  기온=${payload.temperature}  습도=${payload.humidity}%  (device=${payload.device_id})`
-      );
+      setLiveWbgt({
+        wbgt: payload.wbgt,
+        temperature: payload.temperature,
+        humidity: payload.humidity,
+      });
+      logLive();
     } catch (err) {
       console.error('[wbgt]', err.message);
     }
