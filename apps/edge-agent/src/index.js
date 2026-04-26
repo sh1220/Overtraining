@@ -17,6 +17,16 @@ const {
   MOCK_FITBIT = 'true',
 } = process.env;
 
+const defaultHrPollMs = MOCK_FITBIT === 'true' ? 3000 : 60_000;
+const rawHrPoll = process.env.HR_POLL_INTERVAL_MS;
+const HR_POLL_INTERVAL_MS =
+  rawHrPoll == null || rawHrPoll === ''
+    ? defaultHrPollMs
+    : (() => {
+        const n = parseInt(rawHrPoll, 10);
+        return Number.isFinite(n) && n >= 1000 ? n : defaultHrPollMs;
+      })();
+
 if (!process.env.KAFKA_BROKERS) {
   console.warn(
     '[edge] KAFKA_BROKERS 없음 — .env에 `KAFKA_BROKERS=your-ec2-host:9094` 설정(지금은 localhost:9094 임시값)'
@@ -32,6 +42,10 @@ async function main() {
   console.log(`[edge] 디바이스: ${DEVICE_ID}, 사용자: ${userId}`);
   console.log(`[edge] Kafka: ${KAFKA_BROKERS}`);
   console.log(`[edge] Mock 센서: ${MOCK_SENSOR}, Mock Fitbit: ${MOCK_FITBIT}`);
+  console.log(
+    `[edge] HR 폴링: ${HR_POLL_INTERVAL_MS}ms` +
+      (rawHrPoll == null || rawHrPoll === '' ? ` (기본, MOCK_FITBIT=${MOCK_FITBIT})` : '')
+  );
 
   // Kafka producer 초기화
   await initProducer(KAFKA_BROKERS.split(','));
@@ -110,7 +124,7 @@ async function main() {
     }
   }, 5000);
 
-  setInterval(tickHr, 3000);
+  setInterval(tickHr, HR_POLL_INTERVAL_MS);
 
   // 1분마다 heartbeat
   setInterval(async () => {
@@ -123,7 +137,11 @@ async function main() {
     }
   }, 60000);
 
-  console.log('[edge] 시작 완료 — 센서 5초, HR 3초, heartbeat 1분 간격');
+  const hrLabel =
+    HR_POLL_INTERVAL_MS >= 1000
+      ? `${Math.round(HR_POLL_INTERVAL_MS / 1000)}초`
+      : `${HR_POLL_INTERVAL_MS}ms`;
+  console.log(`[edge] 시작 완료 — 센서 5초, HR ${hrLabel}, heartbeat 1분 간격`);
 }
 
 main().catch(err => {
