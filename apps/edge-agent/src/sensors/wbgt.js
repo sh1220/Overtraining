@@ -7,6 +7,14 @@ let currentValues = {
   wbgt: 23.0,
 };
 
+let mockJitter = false;
+
+const MOCK_RISK_DEMO = process.env.MOCK_RISK_DEMO === 'true';
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
 // WBGT 계산 (간이 공식: 0.7*습구 + 0.2*흑구 + 0.1*건구)
 function calcWbgt(temp, hum, blackGlobe) {
   const wetBulb = temp * Math.atan(0.151977 * Math.sqrt(hum + 8.313659))
@@ -16,6 +24,7 @@ function calcWbgt(temp, hum, blackGlobe) {
 }
 
 export function initMockSensor() {
+  mockJitter = true;
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.on('line', (line) => {
     const parts = line.trim().split(/\s+/);
@@ -55,6 +64,32 @@ export function initMockSensor() {
 }
 
 export function readSensor() {
-  // 실제 센서 코드 stub — mock 모드에서는 currentValues 반환
-  return { ...currentValues };
+  if (!mockJitter) {
+    return { ...currentValues };
+  }
+  if (MOCK_RISK_DEMO) {
+    const tMs = Date.now() / 42000;
+    const w =
+      25.5 + 3.0 * Math.sin(tMs) + (Math.random() - 0.5) * 0.25;
+    return {
+      temperature: round1(currentValues.temperature + (Math.random() - 0.5) * 0.4),
+      humidity: round1(
+        Math.min(100, Math.max(0, currentValues.humidity + (Math.random() - 0.5) * 1.2))
+      ),
+      black_globe: round1(currentValues.black_globe + (Math.random() - 0.5) * 0.2),
+      wbgt: round1(w),
+    };
+  }
+  const t = currentValues.temperature + (Math.random() - 0.5) * 0.9;
+  const h = Math.min(100, Math.max(0, currentValues.humidity + (Math.random() - 0.5) * 2.5));
+  const bg = currentValues.black_globe + (Math.random() - 0.5) * 0.5;
+  const temperature = round1(t);
+  const humidity = round1(h);
+  const black_globe = round1(bg);
+  return {
+    temperature,
+    humidity,
+    black_globe,
+    wbgt: round1(calcWbgt(t, h, bg)),
+  };
 }

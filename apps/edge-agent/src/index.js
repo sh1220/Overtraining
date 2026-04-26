@@ -15,6 +15,7 @@ const {
   USER_ID = '1',
   MOCK_SENSOR = 'true',
   MOCK_FITBIT = 'true',
+  MOCK_RISK_DEMO = 'false',
 } = process.env;
 
 const defaultHrPollMs = MOCK_FITBIT === 'true' ? 3000 : 60_000;
@@ -42,6 +43,11 @@ async function main() {
   console.log(`[edge] 디바이스: ${DEVICE_ID}, 사용자: ${userId}`);
   console.log(`[edge] Kafka: ${KAFKA_BROKERS}`);
   console.log(`[edge] Mock 센서: ${MOCK_SENSOR}, Mock Fitbit: ${MOCK_FITBIT}`);
+  if (MOCK_RISK_DEMO === 'true' && (MOCK_SENSOR === 'true' || MOCK_FITBIT === 'true')) {
+    console.log(
+      '[edge] MOCK_RISK_DEMO: WBGT·심박이 EC2 risk 임계를 넘나듦(대시보드·활성 운동 세션·Kafka·USER_ID 일치 필요)'
+    );
+  }
   console.log(
     `[edge] HR 폴링: ${HR_POLL_INTERVAL_MS}ms` +
       (rawHrPoll == null || rawHrPoll === '' ? ` (기본, MOCK_FITBIT=${MOCK_FITBIT})` : '')

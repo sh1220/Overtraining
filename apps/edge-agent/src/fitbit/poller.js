@@ -3,8 +3,26 @@ import { sendHeartRate } from '../kafka/producer.js';
 import { setLiveHr, logLive } from '../liveStatus.js';
 
 const DEVICE_ID = process.env.DEVICE_ID || 'pi-01';
+const MOCK_RISK_DEMO = process.env.MOCK_RISK_DEMO === 'true';
 
 let mockHr = 72;
+
+/**
+ * 일반 mock: mockHr(또는 stdin `hr`) 기준 ±4 BPM.
+ * MOCK_RISK_DEMO: 서버 riskEngine(심박>나이 대비 80/90% 등)이 움직이도록 1분 대 주기로 70~160대 BPM 변동.
+ */
+function nextMockHrSample() {
+  if (MOCK_RISK_DEMO) {
+    const t = Date.now() / 50000;
+    return Math.min(
+      200,
+      Math.max(45, Math.round(115 + 48 * Math.sin(t)))
+    );
+  }
+  const spread = 9; // -4..+4 정도
+  const delta = Math.floor(Math.random() * spread) - Math.floor(spread / 2);
+  return Math.min(200, Math.max(45, mockHr + delta));
+}
 let lastEmptyIntradayLog = 0;
 const EMPTY_LOG_INTERVAL_MS = 15_000;
 
@@ -100,12 +118,13 @@ export async function pollFitbitHr(accessToken, userId) {
 }
 
 export async function pollMockHr(userId) {
-  setLiveHr(mockHr);
+  const hr = nextMockHrSample();
+  setLiveHr(hr);
   logLive();
   await sendHeartRate({
     user_id: userId,
     device_id: DEVICE_ID,
-    hr: mockHr,
+    hr,
     ts: new Date().toISOString(),
     source: 'mock',
   });
