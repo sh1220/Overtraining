@@ -1,0 +1,53 @@
+@startuml
+' fitbit - Raspberry Pi - EC2 사용자 흐름 (code 기준: fitbitOAuth, edge, tokenFetcher, producer)
+' 미리보기: !theme, ** , 색# 지양
+
+title Fitbit, Raspberry Pi, EC2 — 사용자/데이터 흐름
+
+actor 사용자 as u
+participant "브라우저" as br
+participant "EC2: nginx" as ng
+participant "EC2: Next" as next
+participant "EC2: api-server" as api
+database "EC2: MySQL" as db
+boundary "Fitbit (OAuth/웹)" as fitb
+
+queue "EC2: Kafka" as kfk
+boundary "Raspberry Pi\nedge-agent" as rpi
+participant "Fitbit\nREST API" as fitbapi
+
+== 1) 웹: 가입, 로그인, Fitbit 1회 연동 ==
+u -> br : 대시보드 방문(HTTPS)
+br -> ng
+ng -> next
+u -> br : 가입, 로그인(토큰 저장)
+br -> ng
+ng -> api : /auth, /auth/fitbit/start (Bearer JWT)
+api -> br : OAuth authorize_url
+br -> u : Fitbit로 이동(리다이렉트)
+u -> fitb : 계정로그인, 권한 승인
+fitb -> ng : /auth/fitbit/callback (쿼리)
+ng -> api
+api -> db : access_token, refresh (fitbit_tokens)
+api -> br : Location: .../dashboard?fitbit=connected
+
+== 2) (선택) 엣지 등록 — Pi 마다 device, API 키 ==
+rpi -> api : POST /api/edge/register (또는 시드/관리흐름)
+api -> db : edge_devices, api_key_hash
+api -> rpi : api_key (1회, .env에 기록)
+
+== 3) 런타임: Pi, Kafka, API ==
+note over rpi,db
+  Pi .env: KAFKA_BROKERS=EC2:9094, EC2_API_BASE(HTTPS), EDGE_API_KEY, USER_ID(=웹로그인 유저), MOCK_*=false(실기)
+end note
+
+rpi -> kfk : WBGT, heart rate(토픽) — kafkajs
+rpi -> api : X-Edge-Api-Key + GET /api/edge/fitbit-token/USER_ID
+api -> db : user Fitbit token(refresh)
+api -> rpi : access_token(짧은 유효)
+rpi -> fitbapi : 심박/활동 조회(폴링)
+rpi -> api : POST /api/edge/heartbeat(주기)
+
+kfk -> api : consumer가 메시지 처리(세션, 캐시, 리스크 등, 서버내부)
+
+@enduml

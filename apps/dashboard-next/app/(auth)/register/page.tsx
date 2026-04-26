@@ -1,8 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { AUTH_TEMP_DISABLED, enterUiDemoMode } from '@/lib/auth';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -12,21 +11,6 @@ export default function RegisterPage() {
   const [age, setAge] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (AUTH_TEMP_DISABLED) {
-      enterUiDemoMode({ username: 'guest' });
-      router.replace('/dashboard');
-    }
-  }, [router]);
-
-  if (AUTH_TEMP_DISABLED) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 text-sm">
-        회원가입은 임시로 꺼져 있어 대시보드로 이동합니다…
-      </div>
-    );
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

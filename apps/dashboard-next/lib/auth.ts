@@ -1,8 +1,7 @@
 /**
- * 임시: `true`이면 API 로그인/회원가입을 쓰지 않고 `enterUiDemoMode`로만 앱에 진입.
- * 다시 켤 때 `false`로 바꾸기.
+ * 로컬에서 UI만 볼 때 `true`로 하면 루트가 데모 모드로 대시보드에 진입.(운영은 `false`)
  */
-export const AUTH_TEMP_DISABLED = true;
+export const AUTH_TEMP_DISABLED = false;
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;

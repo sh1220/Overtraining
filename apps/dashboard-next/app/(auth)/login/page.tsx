@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { setToken, setUser, enterUiDemoMode, AUTH_TEMP_DISABLED } from '@/lib/auth';
+import { setToken, setUser, enterUiDemoMode } from '@/lib/auth';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -11,21 +11,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (AUTH_TEMP_DISABLED) {
-      enterUiDemoMode({ username: 'guest' });
-      router.replace('/dashboard');
-    }
-  }, [router]);
-
-  if (AUTH_TEMP_DISABLED) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 text-sm">
-        로그인은 임시로 꺼져 있어 대시보드로 이동합니다…
-      </div>
-    );
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,9 +72,9 @@ export default function LoginPage() {
             enterUiDemoMode({ username: name });
             router.push('/dashboard');
           }}
-          className="w-full mt-2 text-sm text-slate-600 border border-slate-200 py-2 rounded-md hover:bg-slate-50"
+          className="w-full mt-3 text-sm text-slate-600 border border-slate-200 py-2 rounded-md hover:bg-slate-50"
         >
-          UI만 보기 (API·백엔드 없음)
+          UI 데모로 보기 (API·백엔드 없음)
         </button>
       </div>
     </div>

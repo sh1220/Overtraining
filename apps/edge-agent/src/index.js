@@ -7,7 +7,7 @@ import { pollFitbitHr, pollMockHr, setMockHr } from './fitbit/poller.js';
 import axios from 'axios';
 
 const {
-  KAFKA_BROKERS = 'localhost:9094',
+  KAFKA_BROKERS: kafkaBrokersEnv = 'localhost:9094',
   EC2_API_BASE = 'http://localhost:3000',
   EDGE_API_KEY = '',
   DEVICE_ID = 'pi-01',
@@ -15,6 +15,13 @@ const {
   MOCK_SENSOR = 'true',
   MOCK_FITBIT = 'true',
 } = process.env;
+
+if (!process.env.KAFKA_BROKERS) {
+  console.warn(
+    '[edge] KAFKA_BROKERS 없음 — .env에 `KAFKA_BROKERS=your-ec2-host:9094` 설정(지금은 localhost:9094 임시값)'
+  );
+}
+const KAFKA_BROKERS = kafkaBrokersEnv;
 
 const userId = parseInt(USER_ID);
 

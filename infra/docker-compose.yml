@@ -11,6 +11,7 @@
 #   docker compose build --no-cache dashboard
 #
 # API ↔ Kafka: kafka:19092  /  Pi(밖): EC2_PUBLIC_HOST:9094
+# EC2_PUBLIC_HOST=localhost 금지 — Pi에 broker: localhost:9094 광고됨(연결 실패)
 # (구 Bitnami) 볼륨 맞교체 시: docker volume rm ... kafka_data
 
 services:
