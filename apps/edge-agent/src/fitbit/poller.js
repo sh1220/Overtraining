@@ -22,23 +22,51 @@ export async function pollFitbitHr(accessToken, userId) {
     return;
   }
 
-  const intradayUrl =
-    'https://api.fitbit.com/1/user/-/activities/heart/date/today/1d/1sec.json';
+  const base =
+    'https://api.fitbit.com/1/user/-/activities/heart/date/today/1d';
+  // 1sec는 데이터가 늦게 들어오거나 비는 경우가 많고, 1min이 더 잘 찍힌다.
+  const tryUrls = [
+    { resolution: '1sec', url: `${base}/1sec.json` },
+    { resolution: '1min', url: `${base}/1min.json` },
+  ];
 
   try {
-    const res = await axios.get(intradayUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    let used = null;
+    let dataset = null;
+    for (const { resolution, url } of tryUrls) {
+      try {
+        const res = await axios.get(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const ds = res.data?.['activities-heart-intraday']?.dataset;
+        const n = ds?.length ?? 0;
+        if (ds && n > 0) {
+          used = resolution;
+          dataset = ds;
+          break;
+        }
+        if (resolution === '1sec' && n === 0) {
+          console.log('[fitbit] 1sec intraday 비어 있음 → 1min intraday로 재시도');
+        }
+      } catch (inner) {
+        const s = inner.response?.status;
+        if (resolution === '1sec') {
+          console.warn(
+            `[fitbit] 1sec 요청 실패 status=${s ?? 'n/a'} — 1min 재시도 (${inner.message})`
+          );
+        } else {
+          throw inner;
+        }
+      }
+    }
 
-    const dataset = res.data?.['activities-heart-intraday']?.dataset;
     const n = dataset?.length ?? 0;
-
     if (dataset && n > 0) {
       const latest = dataset[n - 1];
       const hr = latest.value;
       const t = latest.time != null ? String(latest.time) : '?';
       console.log(
-        `[fitbit] intraday OK n=${n} lastHr=${hr} time=${t} (userId=${userId} → Kafka)`
+        `[fitbit] intraday OK [${used}] n=${n} lastHr=${hr} time=${t} (userId=${userId} → Kafka)`
       );
       setLiveHr(hr);
       logLive();
@@ -54,7 +82,7 @@ export async function pollFitbitHr(accessToken, userId) {
       if (now - lastEmptyIntradayLog >= EMPTY_LOG_INTERVAL_MS) {
         lastEmptyIntradayLog = now;
         console.warn(
-          `[fitbit] intraday dataset 비어 있음 (n=0) — Watch 동기화·착용·시간대 확인, URL=${intradayUrl}`
+          `[fitbit] intraday(1sec·1min) 모두 n=0 — Watch 착용·휴대폰 앱에서 동기화, Fitbit 웹 프로필 시간대(오늘 기준) 확인. base=${base}`
         );
       }
     }
