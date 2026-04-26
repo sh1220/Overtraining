@@ -1,0 +1,14 @@
+{
+  "name": "edge-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5"
+  }
+}

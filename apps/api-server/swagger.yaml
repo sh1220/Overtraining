@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: Overtraining Prevention Cloud API
+  version: 0.3.0
+  description: 과훈련 방지 스마트헬스케어 시연 API
+
+servers:
+  - url: https://myhealth-demo.duckdns.org
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: 회원가입
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, age]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                age: { type: integer }
+      responses:
+        '201': { description: Created }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 로그인
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: JWT 토큰 반환
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /auth/fitbit/start:
+    get:
+      tags: [Fitbit]
+      security: [{ bearerAuth: [] }]
+      summary: Fitbit OAuth 시작
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authorize_url: { type: string }
+
+  /auth/fitbit/callback:
+    get:
+      tags: [Fitbit]
+      summary: Fitbit OAuth callback
+      parameters:
+        - { in: query, name: code, schema: { type: string } }
+        - { in: query, name: state, schema: { type: string } }
+      responses:
+        '302': { description: Vercel로 redirect }
+
+  /api/sessions:
+    post:
+      tags: [Sessions]
+      security: [{ bearerAuth: [] }]
+      summary: 세션 시작
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+    get:
+      tags: [Sessions]
+      security: [{ bearerAuth: [] }]
+      summary: 내 세션 히스토리
+
+  /api/sessions/{id}:
+    get:
+      tags: [Sessions]
+      security: [{ bearerAuth: [] }]
+      summary: 세션 상세 (alerts 포함)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+
+  /api/sessions/{id}/end:
+    post:
+      tags: [Sessions]
+      security: [{ bearerAuth: [] }]
+      summary: 세션 종료
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+
+  /api/sessions/{id}/stream:
+    get:
+      tags: [Sessions]
+      summary: SSE 실시간 스트림
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - { in: query, name: token, schema: { type: string } }
+
+  /api/health/risk:
+    get:
+      tags: [Health]
+      security: [{ bearerAuth: [] }]
+      summary: 즉석 위험도 평가
+
+  /api/fitbit/snapshot:
+    get:
+      tags: [Fitbit]
+      security: [{ bearerAuth: [] }]
+      summary: 오늘자 Fitbit 스냅샷
+
+  /api/edge/register:
+    post:
+      tags: [Edge]
+      summary: Edge 디바이스 등록
+
+  /api/edge/fitbit-token/{userId}:
+    get:
+      tags: [Edge]
+      security: [{ apiKeyAuth: [] }]
+      summary: Fitbit access_token 조회
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: integer } }
+
+  /api/edge/heartbeat:
+    post:
+      tags: [Edge]
+      security: [{ apiKeyAuth: [] }]
+      summary: Edge heartbeat
+
+  /metrics:
+    get:
+      tags: [Monitoring]
+      summary: Prometheus metrics
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Edge-Api-Key
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        age: { type: integer }
+    Session:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [active, ended, aborted] }
+        max_risk_score: { type: integer }
+        final_verdict: { type: string, enum: [OK, CAUTION, STOP], nullable: true }
