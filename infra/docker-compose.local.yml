@@ -33,6 +33,14 @@ services:
       - KAFKA_HEAP_OPTS=-Xmx512m -Xms256m
     volumes:
       - kafka_local_data:/bitnami/kafka
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    expose:
+      - "9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prom_data:/prometheus
 
   api-server:
     build: ../apps/api-server
