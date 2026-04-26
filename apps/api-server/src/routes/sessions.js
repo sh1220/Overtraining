@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
 import { authenticateJwt } from '../middleware/jwt.js';
-import { addClient } from '../sse/broker.js';
+import { addClient, closeSessionStream } from '../sse/broker.js';
 
 const router = Router();
 
@@ -73,12 +73,12 @@ router.post('/:id/end', authenticateJwt, async (req, res) => {
     if (sessions.length === 0) return res.status(404).json({ error: '활성 세션 없음' });
 
     const session = sessions[0];
+    closeSessionStream(session.id);
     const verdict = session.max_risk_score >= 70 ? 'STOP' : session.max_risk_score >= 40 ? 'CAUTION' : 'OK';
     await pool.query(
       'UPDATE workout_sessions SET status = "ended", ended_at = NOW(), final_verdict = ? WHERE id = ?',
       [verdict, session.id]
     );
-
     const [updated] = await pool.query('SELECT * FROM workout_sessions WHERE id = ?', [session.id]);
     res.json(updated[0]);
   } catch (err) {

@@ -30,8 +30,9 @@ export function getDeviceData(deviceId) {
 export function getAllDeviceData() {
   const result = {};
   for (const [key, value] of cache.entries()) {
-    if (key.startsWith('device:')) {
-      result[key.slice(7)] = value;
+    const k = String(key);
+    if (k.startsWith('device:')) {
+      result[k.slice(7)] = value;
     }
   }
   return result;

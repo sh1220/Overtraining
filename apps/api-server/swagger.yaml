@@ -99,7 +99,7 @@ paths:
     post:
       tags: [Sessions]
       security: [{ bearerAuth: [] }]
-      summary: 세션 종료
+      summary: 세션 종료(status=ended, 히스토리 유지)
       parameters:
         - { in: path, name: id, required: true, schema: { type: integer } }
 

@@ -22,3 +22,17 @@ export function broadcast(sessionId, event, data) {
 export function getActiveSessionIds() {
   return [...clients.keys()];
 }
+
+/** 세션 종료/삭제 시 연결된 SSE 를 모두 끊고 맵에서 제거 */
+export function closeSessionStream(sessionId) {
+  const set = clients.get(sessionId);
+  if (!set) return;
+  for (const res of set) {
+    try {
+      res.end();
+    } catch {
+      // ignore
+    }
+  }
+  clients.delete(sessionId);
+}
