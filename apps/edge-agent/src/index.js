@@ -56,9 +56,23 @@ async function main() {
       temperature: d0.temperature,
       humidity: d0.humidity,
     });
-    console.log('[edge] 터미널 요약: Kafka로 보낼 때마다 심박·WBGT·기온·습도 한 줄로 갱신');
+    console.log('[edge] 터미널 요약: 심박·WBGT·기온·습도 한 줄');
     logLive();
   }
+
+  const tickHr = async () => {
+    try {
+      if (MOCK_FITBIT === 'true') {
+        await pollMockHr(userId);
+      } else {
+        const token = await getFitbitToken(EC2_API_BASE, EDGE_API_KEY, userId);
+        if (token) await pollFitbitHr(token, userId);
+      }
+    } catch (err) {
+      console.error('[hr]', err.message);
+    }
+  };
+  await tickHr();
 
   // 5초마다 WBGT 센서 데이터 전송
   setInterval(async () => {
@@ -84,19 +98,7 @@ async function main() {
     }
   }, 5000);
 
-  // 3초마다 심박수 폴링
-  setInterval(async () => {
-    try {
-      if (MOCK_FITBIT === 'true') {
-        await pollMockHr(userId);
-      } else {
-        const token = await getFitbitToken(EC2_API_BASE, EDGE_API_KEY, userId);
-        if (token) await pollFitbitHr(token, userId);
-      }
-    } catch (err) {
-      console.error('[hr]', err.message);
-    }
-  }, 3000);
+  setInterval(tickHr, 3000);
 
   // 1분마다 heartbeat
   setInterval(async () => {

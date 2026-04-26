@@ -27,6 +27,8 @@ export async function pollFitbitHr(accessToken, userId) {
     if (dataset && dataset.length > 0) {
       const latest = dataset[dataset.length - 1];
       const hr = latest.value;
+      setLiveHr(hr);
+      logLive();
       await sendHeartRate({
         user_id: userId,
         device_id: DEVICE_ID,
@@ -34,8 +36,6 @@ export async function pollFitbitHr(accessToken, userId) {
         ts: new Date().toISOString(),
         source: 'fitbit',
       });
-      setLiveHr(hr);
-      logLive();
     }
   } catch (err) {
     console.error('[fitbit/poller]', err.message);
@@ -43,6 +43,8 @@ export async function pollFitbitHr(accessToken, userId) {
 }
 
 export async function pollMockHr(userId) {
+  setLiveHr(mockHr);
+  logLive();
   await sendHeartRate({
     user_id: userId,
     device_id: DEVICE_ID,
@@ -50,6 +52,4 @@ export async function pollMockHr(userId) {
     ts: new Date().toISOString(),
     source: 'mock',
   });
-  setLiveHr(mockHr);
-  logLive();
 }
