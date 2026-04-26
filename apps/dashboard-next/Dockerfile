@@ -1,4 +1,4 @@
-# Next.js 14 (standalone) — EC2 docker-compose + Caddy 뒤에서 serve
+# Next.js 14 (standalone) — EC2 docker-compose, 호스트 nginx 뒤에서 serve
 # 빌드: NEXT_PUBLIC_API_BASE=https://도메인 (클라이언트가 호출하는 API base)
 
 FROM node:20-alpine AS deps
