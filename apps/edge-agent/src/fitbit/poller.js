@@ -5,31 +5,37 @@ import { setLiveHr, logLive } from '../liveStatus.js';
 const DEVICE_ID = process.env.DEVICE_ID || 'pi-01';
 const MOCK_RISK_DEMO = process.env.MOCK_RISK_DEMO === 'true';
 
-let mockHr = 72;
+const HR_FLOOR = 90;
+
+let mockHr = HR_FLOOR;
 
 /**
- * 일반 mock: mockHr(또는 stdin `hr`) 기준 ±4 BPM.
- * MOCK_RISK_DEMO: riskEngine 심박 임계(150→20, 180→30)를 넘나듦(약 1분 대 주기).
+ * 일반 mock: mockHr(또는 stdin) 기준 ±4 BPM, 최소 90.
+ * MOCK_RISK_DEMO: 90~180대로 흔들며 riskEngine 90/120/150을 넘나듦.
  */
 function nextMockHrSample() {
   if (MOCK_RISK_DEMO) {
     const t = Date.now() / 50000;
     const wave = 0.5 + 0.5 * Math.sin(t);
-    return Math.min(200, Math.max(45, Math.round(100 + 80 * wave)));
+    return Math.min(200, Math.max(HR_FLOOR, Math.round(HR_FLOOR + 90 * wave)));
   }
   const spread = 9; // -4..+4 정도
   const delta = Math.floor(Math.random() * spread) - Math.floor(spread / 2);
-  return Math.min(200, Math.max(45, mockHr + delta));
+  return Math.min(200, Math.max(HR_FLOOR, mockHr + delta));
 }
 let lastEmptyIntradayLog = 0;
 const EMPTY_LOG_INTERVAL_MS = 15_000;
 
 // readline에서 hr 값 변경 가능
 export function setMockHr(val) {
-  mockHr = val;
-  setLiveHr(val);
+  mockHr = Math.min(200, Math.max(HR_FLOOR, val));
+  setLiveHr(mockHr);
   logLive();
-  console.log(`[mock] stdin HR → ${val} BPM`);
+  if (val !== mockHr) {
+    console.log(`[mock] stdin HR ${val} → ${HR_FLOOR} 이상으로 맞춤 → ${mockHr} BPM`);
+  } else {
+    console.log(`[mock] stdin HR → ${mockHr} BPM`);
+  }
 }
 
 export async function pollFitbitHr(accessToken, userId) {
