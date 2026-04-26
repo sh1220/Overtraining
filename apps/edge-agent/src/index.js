@@ -25,6 +25,8 @@ if (!process.env.KAFKA_BROKERS) {
 const KAFKA_BROKERS = kafkaBrokersEnv;
 
 const userId = parseInt(USER_ID);
+let lastNoTokenHrLog = 0;
+const NO_TOKEN_HR_LOG_MS = 15_000;
 
 async function main() {
   console.log(`[edge] 디바이스: ${DEVICE_ID}, 사용자: ${userId}`);
@@ -66,7 +68,17 @@ async function main() {
         await pollMockHr(userId);
       } else {
         const token = await getFitbitToken(EC2_API_BASE, EDGE_API_KEY, userId);
-        if (token) await pollFitbitHr(token, userId);
+        if (token) {
+          await pollFitbitHr(token, userId);
+        } else {
+          const t = Date.now();
+          if (t - lastNoTokenHrLog >= NO_TOKEN_HR_LOG_MS) {
+            lastNoTokenHrLog = t;
+            console.warn(
+              '[hr] Fitbit 폴링 생략: access token 없음 ([fitbit-token] 로그 참고)'
+            );
+          }
+        }
       }
     } catch (err) {
       console.error('[hr]', err.message);
