@@ -23,13 +23,15 @@ export async function pollFitbitHr(accessToken, userId) {
     const dataset = res.data?.['activities-heart-intraday']?.dataset;
     if (dataset && dataset.length > 0) {
       const latest = dataset[dataset.length - 1];
+      const hr = latest.value;
       await sendHeartRate({
         user_id: userId,
         device_id: DEVICE_ID,
-        hr: latest.value,
+        hr,
         ts: new Date().toISOString(),
         source: 'fitbit',
       });
+      console.log(`[edge] HR  ${hr} BPM  (fitbit)  user=${userId}  device=${DEVICE_ID}`);
     }
   } catch (err) {
     console.error('[fitbit/poller]', err.message);
@@ -44,4 +46,5 @@ export async function pollMockHr(userId) {
     ts: new Date().toISOString(),
     source: 'mock',
   });
+  console.log(`[edge] HR  ${mockHr} BPM  (mock)  user=${userId}  device=${DEVICE_ID}`);
 }

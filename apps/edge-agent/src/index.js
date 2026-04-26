@@ -52,14 +52,18 @@ async function main() {
   setInterval(async () => {
     try {
       const data = readSensor();
-      await sendWbgt({
+      const payload = {
         device_id: DEVICE_ID,
         temperature: data.temperature,
         humidity: data.humidity,
         black_globe: data.black_globe,
         wbgt: data.wbgt,
         ts: new Date().toISOString(),
-      });
+      };
+      await sendWbgt(payload);
+      console.log(
+        `[edge] WBGT wbgt=${payload.wbgt}°C  기온=${payload.temperature}  습도=${payload.humidity}%  (device=${payload.device_id})`
+      );
     } catch (err) {
       console.error('[wbgt]', err.message);
     }
