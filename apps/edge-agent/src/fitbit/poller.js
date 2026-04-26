@@ -9,15 +9,13 @@ let mockHr = 72;
 
 /**
  * 일반 mock: mockHr(또는 stdin `hr`) 기준 ±4 BPM.
- * MOCK_RISK_DEMO: 서버 riskEngine(심박>나이 대비 80/90% 등)이 움직이도록 1분 대 주기로 70~160대 BPM 변동.
+ * MOCK_RISK_DEMO: riskEngine 심박 임계(150→20, 180→30)를 넘나듦(약 1분 대 주기).
  */
 function nextMockHrSample() {
   if (MOCK_RISK_DEMO) {
     const t = Date.now() / 50000;
-    return Math.min(
-      200,
-      Math.max(45, Math.round(115 + 48 * Math.sin(t)))
-    );
+    const wave = 0.5 + 0.5 * Math.sin(t);
+    return Math.min(200, Math.max(45, Math.round(100 + 80 * wave)));
   }
   const spread = 9; // -4..+4 정도
   const delta = Math.floor(Math.random() * spread) - Math.floor(spread / 2);

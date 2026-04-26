@@ -9,10 +9,10 @@ export function calculateRisk({ sleep_score, current_hr, age, wbgt }) {
     if (wbgt >= 28) factors.wbgt = 40;
     else if (wbgt >= 25) factors.wbgt = 20;
   }
-  if (current_hr != null && age != null) {
-    const maxHR = 220 - age;
-    if (current_hr > maxHR * 0.9) factors.heart_rate = 30;
-    else if (current_hr > maxHR * 0.8) factors.heart_rate = 15;
+  // 심박: (나이·%보다) 절대 BPM — 부담 늦게(고강도 구간)만 반영
+  if (current_hr != null) {
+    if (current_hr >= 180) factors.heart_rate = 30;
+    else if (current_hr >= 150) factors.heart_rate = 20;
   }
 
   const score = factors.sleep + factors.wbgt + factors.heart_rate;
