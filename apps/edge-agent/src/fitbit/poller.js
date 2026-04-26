@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { sendHeartRate } from '../kafka/producer.js';
 
+const DEVICE_ID = process.env.DEVICE_ID || 'pi-01';
+
 let mockHr = 72;
 
 // readline에서 hr 값 변경 가능
@@ -23,6 +25,7 @@ export async function pollFitbitHr(accessToken, userId) {
       const latest = dataset[dataset.length - 1];
       await sendHeartRate({
         user_id: userId,
+        device_id: DEVICE_ID,
         hr: latest.value,
         ts: new Date().toISOString(),
         source: 'fitbit',
@@ -36,6 +39,7 @@ export async function pollFitbitHr(accessToken, userId) {
 export async function pollMockHr(userId) {
   await sendHeartRate({
     user_id: userId,
+    device_id: DEVICE_ID,
     hr: mockHr,
     ts: new Date().toISOString(),
     source: 'mock',

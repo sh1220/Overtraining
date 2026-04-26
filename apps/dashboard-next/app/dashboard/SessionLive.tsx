@@ -82,6 +82,18 @@ export default function SessionLive({ sessionId }: SessionLiveProps) {
         <span className="text-sm text-gray-500">{connected ? '실시간 연결됨' : '연결 끊김'}</span>
       </div>
 
+      {connected && !data && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md p-3 leading-relaxed">
+          아래 수치는 <strong>라즈베리 Pi 엣지 → Kafka</strong>로 데이터가 올 때마다 갱신됩니다. 이 상태로 멈춰 있으면: Pi에서
+          <code className="mx-1 text-xs bg-white px-1 py-0.5 rounded">edge-agent</code> 실행 여부,{' '}
+          <code className="text-xs bg-white px-1 py-0.5 rounded">.env</code>의{' '}
+          <code className="text-xs bg-white px-1 py-0.5 rounded">KAFKA_BROKERS</code>를 확인하세요. 심박/리스크는 HR 메시지의{' '}
+          <code className="text-xs bg-white px-1 py-0.5 rounded">device_id</code>에 대응하는{' '}
+          <code className="text-xs bg-white px-1 py-0.5 rounded">edge_devices.user_id</code>(또는{' '}
+          <code className="text-xs bg-white px-1 py-0.5 rounded">/api/edge/register</code>)가 로그인 id와 같아야 합니다.
+        </p>
+      )}
+
       {data && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -41,11 +41,18 @@ async function handleWbgt(data) {
 }
 
 async function handleHeartRate(data) {
-  const { user_id, hr, ts } = data;
-  updateHr(user_id, hr, ts);
+  const { user_id, hr, ts, device_id: deviceId } = data;
+  // device_id가 있으면 edge_devices.user_id 를 우선( .env USER_ID 와 로그인 유저 불일치 시에도 대시보드와 맞춤 )
+  let uid = user_id;
+  if (deviceId) {
+    const [rows] = await pool.query('SELECT user_id FROM edge_devices WHERE device_id = ?', [deviceId]);
+    if (rows.length > 0 && rows[0].user_id != null) {
+      uid = rows[0].user_id;
+    }
+  }
+  updateHr(uid, hr, ts);
 
-  // 활성 세션에 HR 데이터 + 리스크 평가 전파
-  await evaluateAndBroadcast(user_id, null);
+  await evaluateAndBroadcast(uid, null);
 }
 
 async function evaluateAndBroadcast(userId, deviceId) {
